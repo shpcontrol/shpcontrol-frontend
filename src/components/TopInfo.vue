@@ -2,7 +2,7 @@
 import SheepLogo from './../assets/sheep.png';
 
 export default {
-    props: ['account', 'tokens', 'synced'],
+    props: ['account', 'tokens', 'synced', 'syncedPercent'],
     emits: ['onUpdate'],
     data() {
         return {
@@ -30,7 +30,7 @@ export default {
                 <ul class="dropdown-menu" aria-labelledby="navbarDropdownMenuLink">
                     <li><a class="dropdown-item disabled" href="#" tabindex="-1" aria-disabled="true">Address: {{account}}</a></li>
                     <li><a class="dropdown-item disabled" href="#">
-                        <span :style="{color: synced ? 'green': 'red'}">●</span> Assets: {{tokens.length}}
+                        <span :style="{color: synced ? 'green': 'red'}">● {{syncedPercent}}%</span> Assets: {{tokens.length}}
                     </a></li>
                     <li v-if="synced"><a class="dropdown-item" href="#" @click="$emit('onUpdate')">Update</a></li>
                 </ul>

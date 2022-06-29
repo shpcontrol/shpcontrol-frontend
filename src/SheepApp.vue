@@ -7,6 +7,9 @@ import TopInfo from './components/TopInfo.vue';
 import TokenList from './components/TokenList.vue';
 import TokenSend from './components/TokenSend.vue';
 import TokenContest from './components/TokenContest.vue';
+import PromoBuy from './components/PromoBuy.vue';
+import InstallWallet from './components/InstallWallet.vue';
+import WrongNetwork from './components/WrongNetwork.vue';
 import {TOKEN_ABI, TOKEN_ADDRESS, CONTEST_ABI, CONTEST_ADDRESS} from './contractInfo.js';
 
 
@@ -36,7 +39,19 @@ async function mounted() {
         this.contract = new this.web3.eth.Contract(TOKEN_ABI, TOKEN_ADDRESS);
         this.contestContract = new this.web3.eth.Contract(CONTEST_ABI, CONTEST_ADDRESS);
 
-        await this.updateMyTokens();
+        try {
+            console.log('Check network');
+            await this.getTotalSupply(this.contract, this.account);
+            console.log('Network is correct');
+            this.wrongNetwork = false;
+        } catch (error) {
+            this.wrongNetwork = true;
+            console.log('Wrong network');
+        }
+
+        if (!this.wrongNetwork) {
+            await this.updateMyTokens();
+        }
     }
 }
 
@@ -54,12 +69,20 @@ export default {
             tokenIdToSend: undefined,
             tokenIdToContest: undefined,
             tokensUpdateBatch: 6,
-            synced: false
+            synced: false,
+            syncedPercent: 0,
+            wrongNetwork: false
         };
     },
     computed: {
-        isLoading() {
-            return this.account === undefined;
+        hasWallet() {
+            return this.account !== undefined;
+        },
+        showPromo() {
+            return this.synced && this.tokens.length === 0;
+        },
+        showLoading() {
+            return !this.synced && this.tokens.length === 0;
         }
     },
     components: {
@@ -67,7 +90,10 @@ export default {
         TopInfo,
         TokenList,
         TokenSend,
-        TokenContest
+        TokenContest,
+        PromoBuy,
+        InstallWallet,
+        WrongNetwork
     },
     methods: {
         async updateTokenI(i) {
@@ -88,6 +114,7 @@ export default {
                 return item !== undefined;
             }
             this.synced = false;
+            this.syncedPercent = 0;
             this.changeTokenListPage(1);
             this.tokens.splice(0);
 
@@ -100,11 +127,13 @@ export default {
                     this.tokens = [...this.tokens, ...tokensBatch.filter(notUndefined)];
                     updateTokenITasks.splice(0);
                 }
+                this.syncedPercent = Math.round(100 * (i / totalSupply));
             }
             if (updateTokenITasks.length > 0) {
                 let tokensBatch = await Promise.all(updateTokenITasks);
                 this.tokens = [...this.tokens, ...tokensBatch.filter(notUndefined)];
             }
+            this.syncedPercent = 100;
             this.synced = true;
         },
         changeTokenListPage(page) {
@@ -140,9 +169,12 @@ export default {
 </script>
 
 <template>
-    <TopInfo v-if="!isLoading" :account="account" :tokens="tokens" @onUpdate="updateMyTokens" :synced="synced"></TopInfo>
-    <LoadingPlaceholder v-if="isLoading || tokens.length == 0"></LoadingPlaceholder>
+    <InstallWallet v-if="!hasWallet"></InstallWallet>
+    <WrongNetwork v-else-if="wrongNetwork"></WrongNetwork>
     <template v-else>
+        <TopInfo :account="account" :tokens="tokens" @onUpdate="updateMyTokens" :synced="synced" :syncedPercent="syncedPercent"></TopInfo>
+        <PromoBuy v-if="showPromo"></PromoBuy>
+        <LoadingPlaceholder v-if="showLoading"></LoadingPlaceholder>
         <TokenList 
             :tokens="tokens"
             :page="tokenListPage" 
